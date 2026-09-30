@@ -1,0 +1,10 @@
+{
+  "name": "Street Racer",
+  "short_name": "Street Racer",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#111111",
+  "orientation": "portrait",
+  "description": "A simple mobile street racing game."
+}

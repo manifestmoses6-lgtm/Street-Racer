@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Street Racer</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080808;font-family:Arial,sans-serif;touch-action:none}
+#game{position:relative;width:100%;height:100%;overflow:hidden;background:#159447}
+#road{position:absolute;left:12%;width:76%;height:100%;background:#333;box-shadow:inset 0 0 0 3px #222}
+.line{position:absolute;top:-20%;height:25%;width:5px;background:#eee;opacity:.9}
+.l1{left:33%}.l2{left:66%}
+#player,#enemy{position:absolute;width:13%;aspect-ratio:.55;border-radius:18% 18% 12% 12%;z-index:5}
+#player{background:#e9e9e9;bottom:14%;left:43.5%;box-shadow:0 0 0 3px #111}
+#player:before,#enemy:before{content:"";position:absolute;left:16%;right:16%;top:16%;height:28%;background:#111;border-radius:20%}
+#player:after,#enemy:after{content:"";position:absolute;left:12%;right:12%;bottom:10%;height:20%;background:#111;border-radius:20%}
+#enemy{background:#ff4b4b;top:-25%;left:20%}
+.wheel{position:absolute;width:18%;height:25%;background:#111;border-radius:50%;top:25%}
+.w1{left:-8%}.w2{right:-8%}.w3{left:-8%;bottom:25%;top:auto}.w4{right:-8%;bottom:25%;top:auto}
+#enemy .w1,#enemy .w2,#enemy .w3,#enemy .w4{display:block}
+#player .wheel,#enemy .wheel{display:block}
+#hud{position:absolute;top:10px;left:0;right:0;z-index:10;display:flex;justify-content:space-around;color:#fff;font-weight:bold;text-shadow:0 2px 3px #000;font-size:18px}
+#coin{position:absolute;width:28px;height:28px;border-radius:50%;background:#ffd83d;border:3px solid #fff;z-index:4;box-shadow:0 0 12px #ffd83d;display:none}
+#controls{position:absolute;bottom:4%;left:0;right:0;z-index:20;display:flex;justify-content:center;gap:18%}
+button{width:27vw;max-width:140px;height:70px;border:0;border-radius:18px;background:rgba(0,0,0,.6);color:#fff;font-size:34px;font-weight:bold}
+#overlay{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);color:#fff;text-align:center}
+.panel{padding:25px}
+h1{font-size:42px;margin:0 0 10px}
+p{font-size:19px}
+#start{background:#fff;color:#111;width:220px;height:58px;font-size:20px}
+.hidden{display:none!important}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Street Racer">
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js'));
+}
+</script>
+</head>
+<body>
+<div id="game">
+  <div id="road">
+    <div class="line l1"></div><div class="line l2"></div>
+  </div>
+  <div id="player">
+    <i class="wheel w1"></i><i class="wheel w2"></i><i class="wheel w3"></i><i class="wheel w4"></i>
+  </div>
+  <div id="enemy">
+    <i class="wheel w1"></i><i class="wheel w2"></i><i class="wheel w3"></i><i class="wheel w4"></i>
+  </div>
+  <div id="coin"></div>
+  <div id="hud">
+    <span>Score: <b id="score">0</b></span>
+    <span>Coins: <b id="coins">0</b></span>
+    <span>Level: <b id="level">1</b></span>
+  </div>
+  <div id="controls">
+    <button id="left">◀</button>
+    <button id="right">▶</button>
+  </div>
+  <div id="overlay">
+    <div class="panel">
+      <h1>STREET RACER</h1>
+      <p>Dodge traffic, collect coins and beat your high score.</p>
+      <button id="start">START RACE</button>
+      <p id="best"></p>
+    </div>
+  </div>
+</div>
+<script>
+const player=document.getElementById('player');
+const enemy=document.getElementById('enemy');
+const coin=document.getElementById('coin');
+const scoreEl=document.getElementById('score');
+const coinsEl=document.getElementById('coins');
+const levelEl=document.getElementById('level');
+const overlay=document.getElementById('overlay');
+const startBtn=document.getElementById('start');
+const bestEl=document.getElementById('best');
+const lines=[...document.querySelectorAll('.line')];
+
+let running=false, score=0, coins=0, level=1, lane=1, enemyLane=0;
+let enemyY=-30, coinX=0, coinY=-100, speed=0.65, last=0, raf=0;
+let high=Number(localStorage.getItem('streetRacerHigh')||0);
+bestEl.textContent='High Score: '+high;
+
+function setLane(el,l){
+  const positions=[17,43.5,70];
+  el.style.left=positions[l]+'%';
+}
+function resetEnemy(){
+  enemyLane=Math.floor(Math.random()*3);
+  setLane(enemy,enemyLane);
+  enemyY=-25-Math.random()*20;
+}
+function spawnCoin(){
+  coinX=[18,44,71][Math.floor(Math.random()*3)];
+  coinY=-30-Math.random()*20;
+  coin.style.left=coinX+'%';
+  coin.style.top=coinY+'%';
+  coin.style.display='block';
+}
+function startGame(){
+  score=0;coins=0;level=1;speed=.65;lane=1;last=performance.now();
+  setLane(player,lane); resetEnemy(); spawnCoin();
+  scoreEl.textContent=0; coinsEl.textContent=0; levelEl.textContent=1;
+  overlay.classList.add('hidden'); running=true;
+  cancelAnimationFrame(raf); raf=requestAnimationFrame(loop);
+}
+function endGame(){
+  running=false;
+  if(score>high){high=score;localStorage.setItem('streetRacerHigh',high)}
+  bestEl.textContent='High Score: '+high;
+  overlay.querySelector('h1').textContent='GAME OVER';
+  overlay.querySelector('p').textContent='Score: '+score+'   •   Coins: '+coins;
+  startBtn.textContent='RACE AGAIN';
+  overlay.classList.remove('hidden');
+}
+function move(dir){
+  if(!running)return;
+  lane=Math.max(0,Math.min(2,lane+dir)); setLane(player,lane);
+}
+function hit(a,b){
+  const A=a.getBoundingClientRect(), B=b.getBoundingClientRect();
+  return !(A.right<B.left||A.left>B.right||A.bottom<B.top||A.top>B.bottom);
+}
+function loop(t){
+  if(!running)return;
+  const dt=Math.min(32,t-last); last=t;
+  enemyY += speed*dt*.09;
+  enemy.style.top=enemyY+'%';
+  lines.forEach((x,i)=>{
+    let y=parseFloat(x.style.top||(-20+i*35));
+    y += speed*dt*.04; if(y>100)y=-25;
+    x.style.top=y+'%';
+  });
+  coinY += speed*dt*.075;
+  coin.style.top=coinY+'%';
+  if(hit(player,enemy)) return endGame();
+  if(coin.style.display!=='none' && hit(player,coin)){
+    coins++; score+=10; coinsEl.textContent=coins; coin.style.display='none';
+  }
+  if(enemyY>110){
+    score++; scoreEl.textContent=score;
+    level=1+Math.floor(score/15); levelEl.textContent=level;
+    speed=.65+level*.08; resetEnemy();
+    if(Math.random()<.75)spawnCoin();
+  }
+  if(coinY>110) spawnCoin();
+  raf=requestAnimationFrame(loop);
+}
+function pauseGame(){ if(running){running=false;} }
+window.pauseGame=pauseGame;
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'||e.key==='a')move(-1);
+  if(e.key==='ArrowRight'||e.key==='d')move(1);
+  if(e.key==='Enter'&&!running)startGame();
+});
+['touchstart','mousedown'].forEach(evt=>{
+  document.getElementById('left').addEventListener(evt,e=>{e.preventDefault();move(-1)});
+  document.getElementById('right').addEventListener(evt,e=>{e.preventDefault();move(1)});
+});
+startBtn.addEventListener('click',startGame);
+</script>
+</body>
+</html>
