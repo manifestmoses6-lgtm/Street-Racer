@@ -20,11 +20,11 @@ jobs:
 
       - name: Extract Android project
         run: |
-          mkdir android-project
-          unzip -o app.zip -d android-project
-          cp build.gradle android-project/StreetRacer/
-          cp settings.gradle android-project/StreetRacer/
-          cp gradle.properties android-project/StreetRacer/
+           mkdir android-project
+           unzip -o app.zip -d android-project
+           cp build.gradle android-project/
+           cp settings.gradle android-project/
+           cp gradle.properties android-project/
 
       - name: Set up Java
         uses: actions/setup-java@v4
