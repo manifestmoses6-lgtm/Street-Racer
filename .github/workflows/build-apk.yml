@@ -32,14 +32,14 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Gradle
-        run: sudo apt-get update && sudo apt-get install -y gradle
-
       - name: Build APK
         working-directory: android-project
-        run: gradle assembleDebug --stacktrace
+      run: |
+        wget https://services.gradle.org/distributions/gradle-8.9-bin.zip
+        unzip -q gradle-8.9-bin.zip
+        ./gradle-8.9/bin/gradle assembleDebug --stacktrace
 
-      - name: Upload APK
+         - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Street-Racer-APK
