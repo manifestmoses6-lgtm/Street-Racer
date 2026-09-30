@@ -1,0 +1,46 @@
+name: Build Street Racer APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "app.zip"
+      - "build.gradle"
+      - "settings.gradle"
+      - "gradle.properties"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android app
+        run: |
+          mkdir android-project
+          unzip -o app.zip -d android-project
+          cp build.gradle android-project/
+          cp settings.gradle android-project/
+          cp gradle.properties android-project/
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Gradle
+        run: sudo apt-get update && sudo apt-get install -y gradle
+
+      - name: Build APK
+        working-directory: android-project/StreetRacer
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Street-Racer-APK
+          path: android-project/StreetRacer/app/build/outputs/apk/debug/app-debug.apk
