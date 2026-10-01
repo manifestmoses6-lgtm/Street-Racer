@@ -1,0 +1,40 @@
+name: Build Street Racer 3D APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "StreetRacer3D_Android_Project.zip"
+      - ".github/workflows/build-3d-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android project
+        run: |
+          mkdir android-project
+          unzip -o StreetRacer3D_Android_Project.zip -d android-project
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build APK
+        working-directory: android-project
+        run: |
+          wget https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q gradle-8.9-bin.zip
+          ./gradle-8.9/bin/gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Street-Racer-3D-APK
+          path: android-project/app/build/outputs/apk/debug/app-debug.apk
