@@ -20,12 +20,13 @@ jobs:
 
       - name: Extract Android project
         run: |
-           mkdir android-project
-           unzip -o app.zip -d android-project
-           cp build.gradle android-project/
-           cp settings.gradle android-project/
-           cp gradle.properties android-project/
-
+            mkdir android-project
+            unzip -o app.zip -d android-project
+            find android-project -type d -name app -exec cp -r {} android-project/ \;
+            cp build.gradle android-project/
+            cp settings.gradle android-project/
+            cp gradle.properties android-project/
+    
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
