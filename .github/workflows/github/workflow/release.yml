@@ -1,67 +1,76 @@
-name: Build Street Racer Release (AAB)
-
-on:
-  workflow_dispatch:
-
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check signing secrets
-        env:
-          KB: ${{ secrets.KEYSTORE_BASE64 }}
-          KP: ${{ secrets.KEYSTORE_PASSWORD }}
-          KA: ${{ secrets.KEY_ALIAS }}
-          KK: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          if [ -z "$KB" ] || [ -z "$KP" ] || [ -z "$KA" ] || [ -z "$KK" ]; then
-            echo "A signing secret is missing. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD in Settings > Secrets and variables > Actions."
-            exit 1
-          fi
-
-      - name: Unzip project (if app.zip exists)
-        run: |
-          if [ -f app.zip ]; then
-            mkdir -p android-project
-            unzip -o app.zip -d android-project
-          fi
-
-      - name: Find project folder
-        run: |
-          S=$(find . -name settings.gradle -not -path "./.git/*" | head -1)
-          if [ -z "$S" ]; then echo "settings.gradle not found"; exit 1; fi
-          echo "PROJECT_DIR=$(dirname "$S")" >> $GITHUB_ENV
-
-      - name: Create upload keystore
-        env:
-          KB: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KB" | base64 -d > "$RUNNER_TEMP/upload.jks"
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.13
-
-      - name: Build signed release bundle
-        working-directory: ${{ env.PROJECT_DIR }}
-        env:
-          KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-       run: gradle bundleRelease --no-daemon
-
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-        name: StreetRacer-Release-AAB
-        path: ${{ env.PROJECT_DIR }}/app/build/outputs/bundle/release/app-release.aab
+{
+ "name": "Build Street Racer Release (AAB)",
+ "on": {
+  "workflow_dispatch": null
+ },
+ "jobs": {
+  "release": {
+   "runs-on": "ubuntu-latest",
+   "steps": [
+    {
+     "name": "Checkout repository",
+     "uses": "actions/checkout@v4"
+    },
+    {
+     "name": "Check signing secrets",
+     "env": {
+      "KB": "${{ secrets.KEYSTORE_BASE64 }}",
+      "KP": "${{ secrets.KEYSTORE_PASSWORD }}",
+      "KA": "${{ secrets.KEY_ALIAS }}",
+      "KK": "${{ secrets.KEY_PASSWORD }}"
+     },
+     "run": "if [ -z \"$KB\" ] || [ -z \"$KP\" ] || [ -z \"$KA\" ] || [ -z \"$KK\" ]; then\n echo \"A signing secret is missing. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD in Settings > Secrets and variables > Actions.\"\n exit 1\nfi\n"
+    },
+    {
+     "name": "Unzip project (if app.zip exists)",
+     "run": "if [ -f app.zip ]; then\n mkdir -p android-project\n unzip -o app.zip -d android-project\nfi\n"
+    },
+    {
+     "name": "Find project folder",
+     "run": "S=$(find . -name settings.gradle -not -path \"./.git/*\" | head -1)\nif [ -z \"$S\" ]; then echo \"settings.gradle not found\"; exit 1; fi\necho \"PROJECT_DIR=$(dirname \"$S\")\" >> $GITHUB_ENV\n"
+    },
+    {
+     "name": "Create upload keystore",
+     "env": {
+      "KB": "${{ secrets.KEYSTORE_BASE64 }}"
+     },
+     "run": "echo \"$KB\" | base64 -d > \"$RUNNER_TEMP/upload.jks\""
+    },
+    {
+     "name": "Set up Java",
+     "uses": "actions/setup-java@v4",
+     "with": {
+      "distribution": "temurin",
+      "java-version": 17
+     }
+    },
+    {
+     "name": "Set up Gradle",
+     "uses": "gradle/actions/setup-gradle@v4",
+     "with": {
+      "gradle-version": 8.13
+     }
+    },
+    {
+     "name": "Build signed release bundle",
+     "working-directory": "${{ env.PROJECT_DIR }}",
+     "env": {
+      "KEYSTORE_PATH": "${{ runner.temp }}/upload.jks",
+      "KEYSTORE_PASSWORD": "${{ secrets.KEYSTORE_PASSWORD }}",
+      "KEY_ALIAS": "${{ secrets.KEY_ALIAS }}",
+      "KEY_PASSWORD": "${{ secrets.KEY_PASSWORD }}"
+     },
+     "run": "gradle bundleRelease --no-daemon"
+    },
+    {
+     "name": "Upload AAB",
+     "uses": "actions/upload-artifact@v4",
+     "with": {
+      "name": "StreetRacer-Release-AAB",
+      "path": "${{ env.PROJECT_DIR }}/app/build/outputs/bundle/release/app-release.aab"
+     }
+    }
+   ]
+  }
+ }
+}
