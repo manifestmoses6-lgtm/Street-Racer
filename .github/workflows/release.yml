@@ -12,16 +12,6 @@
      "uses": "actions/checkout@v4"
     },
     {
-     "name": "Check signing secrets",
-     "env": {
-      "KB": "${{ secrets.KEYSTORE_BASE64 }}",
-      "KP": "${{ secrets.KEYSTORE_PASSWORD }}",
-      "KA": "${{ secrets.KEY_ALIAS }}",
-      "KK": "${{ secrets.KEY_PASSWORD }}"
-     },
-     "run": "if [ -z \"$KB\" ] || [ -z \"$KP\" ] || [ -z \"$KA\" ] || [ -z \"$KK\" ]; then\n echo \"A signing secret is missing. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD in Settings > Secrets and variables > Actions.\"\n exit 1\nfi\n"
-    },
-    {
      "name": "Unzip project (if app.zip exists)",
      "run": "if [ -f app.zip ]; then\n mkdir -p android-project\n unzip -o app.zip -d android-project\nfi\n"
     },
@@ -30,11 +20,16 @@
      "run": "S=$(find . -name settings.gradle -not -path \"./.git/*\" | head -1)\nif [ -z \"$S\" ]; then echo \"settings.gradle not found\"; exit 1; fi\necho \"PROJECT_DIR=$(dirname \"$S\")\" >> $GITHUB_ENV\n"
     },
     {
-     "name": "Create upload keystore",
+     "name": "Prepare signing key",
      "env": {
-      "KB": "${{ secrets.KEYSTORE_BASE64 }}"
+      "KB": "${{ secrets.KEYSTORE_BASE64 }}",
+      "KP": "${{ secrets.KEYSTORE_PASSWORD }}"
      },
-     "run": "echo \"$KB\" | base64 -d > \"$RUNNER_TEMP/upload.jks\""
+     "run": "if [ -z \"$KB\" ] || [ -z \"$KP\" ]; then\n echo \"Missing secret: add KEYSTORE_BASE64 and KEYSTORE_PASSWORD in Settings > Secrets and variables > Actions.\"\n exit 1\nfi\nKB2=$(printf %s \"$KB\" | tr -d '[:space:]')\nKP2=$(printf %s \"$KP\" | tr -d '[:space:]')\necho \"::add-mask::$KP2\"\nprintf %s \"$KB2\" | base64 -d > \"$RUNNER_TEMP/upload.jks\" || { echo \"KEYSTORE_BASE64 is not valid base64 (it was cut off or has extra characters). Re-copy it from the secrets file.\"; exit 1; }\necho \"KEYSTORE_PATH=$RUNNER_TEMP/upload.jks\" >> $GITHUB_ENV\necho \"KEYSTORE_PASSWORD=$KP2\" >> $GITHUB_ENV\necho \"KEY_PASSWORD=$KP2\" >> $GITHUB_ENV\necho \"KEY_ALIAS=upload\" >> $GITHUB_ENV\n"
+    },
+    {
+     "name": "Verify signing key",
+     "run": "if keytool -list -keystore \"$KEYSTORE_PATH\" -storetype PKCS12 -storepass \"$KEYSTORE_PASSWORD\" -alias upload > /dev/null 2>&1; then\n echo \"Signing key OK.\"\nelse\n echo \"SIGNING KEY PROBLEM: the keystore could not be unlocked. Check that KEYSTORE_PASSWORD is exactly the 22-character password and KEYSTORE_BASE64 is the full long text from the secrets file.\"\n keytool -list -keystore \"$KEYSTORE_PATH\" -storetype PKCS12 -storepass \"$KEYSTORE_PASSWORD\" -alias upload 2>&1 | head -5\n exit 1\nfi\n"
     },
     {
      "name": "Set up Java",
@@ -48,18 +43,12 @@
      "name": "Set up Gradle",
      "uses": "gradle/actions/setup-gradle@v4",
      "with": {
-      "gradle-version": 8.13
+      "gradle-version": "8.13"
      }
     },
     {
      "name": "Build signed release bundle",
      "working-directory": "${{ env.PROJECT_DIR }}",
-     "env": {
-      "KEYSTORE_PATH": "${{ runner.temp }}/upload.jks",
-      "KEYSTORE_PASSWORD": "${{ secrets.KEYSTORE_PASSWORD }}",
-      "KEY_ALIAS": "${{ secrets.KEY_ALIAS }}",
-      "KEY_PASSWORD": "${{ secrets.KEY_PASSWORD }}"
-     },
      "run": "gradle bundleRelease --no-daemon"
     },
     {
